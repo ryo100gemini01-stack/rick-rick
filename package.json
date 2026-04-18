@@ -1,0 +1,21 @@
+{
+  "name": "rick-rick",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "Tempsvg",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.8.1",
+    "youtubei.js": "latest",
+    "ytpl": "latest",
+    "express": "^4.18.2",
+    "ws": "^8.16.0",
+    "node-fetch": "^2.6.7"
+  }
+}

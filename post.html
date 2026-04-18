@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>コミュニティ投稿とコメント</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .post-card { border: 1px solid #ccc; padding: 12px; margin-bottom: 20px; border-radius: 6px; }
+    .post-title { font-weight: bold; font-size: 1.1em; margin-bottom: 6px; }
+    .post-text { margin-bottom: 8px; }
+    .comment-toggle { cursor: pointer; color: #0066cc; font-size: 0.9em; margin-bottom: 4px; }
+    .comment-list { margin-left: 10px; margin-top: 4px; }
+    .comment-item { margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #eee; }
+    .comment-author { font-weight: bold; margin-right: 6px; }
+    .comment-likes { font-size: 0.8em; color: #666; }
+  </style>
+</head>
+<body>
+  <h1>コミュニティ投稿一覧</h1>
+
+  <div>
+    <label>チャンネルID: <input type="text" id="channelIdInput" placeholder="UCxxxx..."></label>
+    <button id="loadPostsBtn">投稿を表示</button>
+  </div>
+
+  <div id="postsContainer" style="margin-top:20px;"></div>
+
+  <script>
+    const postsContainer = document.getElementById("postsContainer");
+
+    // HTMLエスケープ用
+    function escapeHTML(str) {
+      if (!str) return '';
+      return str.replace(/[&<>"']/g, m => ({
+        '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+      }[m]));
+    }
+
+    async function loadPosts(channelId, limit=5) {
+      postsContainer.innerHTML = "<p>読み込み中...</p>";
+
+      try {
+        const res = await fetch(`/api/channel-post?channelId=${channelId}&limit=${limit}`);
+        if (!res.ok) throw new Error("投稿取得失敗");
+
+        const data = await res.json();
+        if (!data.posts || data.posts.length === 0) {
+          postsContainer.innerHTML = "<p>投稿が見つかりません</p>";
+          return;
+        }
+
+        postsContainer.innerHTML = '';
+        data.posts.forEach(post => {
+          const card = document.createElement('div');
+          card.className = 'post-card';
+
+          card.innerHTML = `
+            <div class="post-title">投稿: ${escapeHTML(post.postId)}</div>
+            <div class="post-text">${escapeHTML(post.text)}</div>
+            ${post.images && post.images.length > 0 
+              ? `<div>${post.images.map(url => `<img src="${url}" style="max-width:200px;margin-right:6px;">`).join('')}</div>` 
+              : ''
+            }
+            <div class="comment-toggle" data-post-id="${post.postId}">▼ コメントを表示</div>
+            <div class="comment-list" id="comments-${post.postId}" style="display:none;"></div>
+          `;
+
+          // コメント表示ボタン
+          card.querySelector('.comment-toggle').addEventListener('click', () => {
+            loadComments(post.postId, channelId);
+          });
+
+          postsContainer.appendChild(card);
+        });
+
+      } catch (err) {
+        console.error(err);
+        postsContainer.innerHTML = "<p>❌ 投稿取得エラー</p>";
+      }
+    }
+
+    async function loadComments(postId, channelId) {
+      const box = document.getElementById(`comments-${postId}`);
+      if (!box) return;
+
+      if (box.dataset.loaded === "1") {
+        box.style.display = box.style.display === "none" ? "block" : "none";
+        return;
+      }
+
+      box.innerHTML = "<p>コメント読み込み中...</p>";
+
+      try {
+        const res = await fetch(`/api/postComments?postId=${postId}&channelId=${channelId}`);
+        if (!res.ok) throw new Error("コメント取得失敗");
+        const comments = await res.json();
+
+        if (!comments.length) {
+          box.innerHTML = "<p>コメントはありません</p>";
+          box.dataset.loaded = "1";
+          return;
+        }
+
+        box.innerHTML = comments.map(c => `
+          <div class="comment-item">
+            <span class="comment-author">${escapeHTML(c.author.name)}</span>
+            <span class="comment-likes">❤️ ${c.likeCount}</span>
+            <div>${escapeHTML(c.text)}</div>
+          </div>
+        `).join('');
+
+        box.dataset.loaded = "1";
+        box.style.display = "block";
+
+      } catch (err) {
+        console.error(err);
+        box.innerHTML = "<p>❌ コメント取得エラー</p>";
+      }
+    }
+
+    document.getElementById('loadPostsBtn').addEventListener('click', () => {
+      const channelId = document.getElementById('channelIdInput').value.trim();
+      if (!channelId) return alert("チャンネルIDを入力してください");
+      loadPosts(channelId);
+    });
+  </script>
+</body>
+</html>

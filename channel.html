@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>チャンネル情報</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
+
+    .channel {
+      max-width: 1200px;
+      margin: auto;
+      border: 1px solid #ccc;
+      padding: 16px;
+      border-radius: 8px;
+      background-color: #fff;
+    }
+
+    .channel img.avatar {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .banner {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+
+    .meta {
+      margin-top: 8px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .tabs {
+      margin-top: 20px;
+    }
+
+    .tab-button {
+      display: inline-block;
+      background-color: #ddd;
+      border: none;
+      padding: 10px 16px;
+      margin-right: 8px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .tab-button.active {
+      background-color: #aaa;
+      color: #fff;
+    }
+
+    .tab-button:hover {
+      background-color: #bbb;
+    }
+
+    .video-grid {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .video-card {
+      background-color: #f1f1f1;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px;
+      min-height: 280px;
+      transition: box-shadow 0.2s ease;
+    }
+
+    .video-card:hover {
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .video-card img {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+
+    .video-title {
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: #0066cc;
+      text-align: center;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-height: 2.8em;
+      line-height: 1.4;
+    }
+
+    .video-title:hover {
+      text-decoration: underline;
+    }
+
+    .video-info {
+      color: #444;
+      font-size: 0.9rem;
+      text-align: center;
+      margin-top: 6px;
+    }
+
+    .video-subinfo {
+      color: #777;
+      font-size: 0.8rem;
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    /* 投稿タブ用カード */
+    .post-card {
+      background-color: #f7f7f7;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .post-card img {
+      width: 100%;
+      max-height: 240px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-top: 8px;
+    }
+    .post-meta {
+      color: #666;
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+    
+    /* 画像スライダー */
+.slider {
+  position: relative;
+  width: 100%;
+  max-height: 240px;
+  overflow: hidden;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.slide {
+  display: none;
+  width: 100%;
+}
+
+.slide.active {
+  display: block;
+}
+
+.slide img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.slider button.prev,
+.slider button.next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0,0,0,0.4);
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.slider button.prev:hover,
+.slider button.next:hover {
+  background-color: rgba(0,0,0,0.6);
+}
+
+.slider button.prev { left: 6px; }
+.slider button.next { right: 6px; }
+
+/* 追加CSS（既存CSSの下に追加） */
+.post-slider-image {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.post-slider-image:hover {
+  transform: scale(1.02);
+}
+
+  </style>
+</head>
+<body>
+  <div id="channel" class="channel">読み込み中...</div>
+<!-- モーダル本体 -->
+<div id="imageModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);justify-content:center;align-items:center;z-index:1000;">
+  <button id="modalPrev" style="position:absolute;left:30px;font-size:40px;color:white;background:none;border:none;cursor:pointer;user-select:none;">❮</button>
+  <img id="modalImg" src="" style="max-width:90%;max-height:90%;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.5);transition:opacity 0.2s;">
+  <button id="modalNext" style="position:absolute;right:30px;font-size:40px;color:white;background:none;border:none;cursor:pointer;user-select:none;">❯</button>
+  <span id="modalClose" style="position:absolute;top:20px;right:30px;font-size:36px;color:#fff;cursor:pointer;">&times;</span>
+</div>
+  <script>
+    function escapeHTML(str) {
+      return String(str || '')
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    function createVideoCard(video) {
+      const div = document.createElement('div');
+      div.className = 'video-card';
+      const videoUrl = `/video.html?videoId=${encodeURIComponent(video.videoId)}`;
+      div.innerHTML = `
+        <a href="${videoUrl}">
+          <img src="${escapeHTML(video.thumbnail)}" alt="動画のサムネイル">
+        </a>
+        <a class="video-title" href="${videoUrl}">
+          ${escapeHTML(video.title)}
+        </a>
+        <div class="video-info">${escapeHTML(video.views)}</div>
+        <div class="video-subinfo">${escapeHTML(video.published)}</div>
+      `;
+      return div;
+    }
+
+    function createPlaylistCard(pl) {
+      const div = document.createElement('div');
+      div.className = 'video-card';
+      div.innerHTML = `
+        <a href="${pl.url}" target="_self">
+          <img src="${pl.thumbnail}" alt="プレイリストサムネイル">
+        </a>
+        <a class="video-title" href="${pl.url}" target="_self">${escapeHTML(pl.title)}</a>
+        <div class="video-info">${escapeHTML(pl.videoCount)}</div>
+      `;
+      return div;
+    }
+
+// ===============================
+// 🔥 完全版：もっと読み込む対応 loadCommunityTab
+// ===============================
+async function loadCommunityTab(channelIdOrUrl, limit = 5) {
+  const wrapper = document.createElement("div");
+  wrapper.style.width = "100%";
+
+  // 投稿カードを格納する Grid
+  const grid = document.createElement("div");
+  grid.className = "video-grid";
+  grid.innerHTML = "<p>投稿を読み込み中...</p>";
+
+  wrapper.appendChild(grid);
+
+  // 🔽 もっと読み込むボタン
+  const loadMoreBtn = document.createElement("button");
+  loadMoreBtn.textContent = "もっと読み込む";
+  loadMoreBtn.style.marginTop = "12px";
+  loadMoreBtn.style.padding = "10px 20px";
+  loadMoreBtn.style.cursor = "pointer";
+  loadMoreBtn.style.display = "none"; // 初期は隠す
+  wrapper.appendChild(loadMoreBtn);
+
+  // ==========================
+  // 投稿の読み込み処理（limit 対応）
+  // ==========================
+  async function fetchAndRenderPosts() {
+    grid.innerHTML = "<p>投稿を読み込み中...</p>";
+
+    try {
+      const res = await fetch(
+        `/api/community?channelId=${encodeURIComponent(channelIdOrUrl)}&limit=${limit}`
+      );
+      if (!res.ok) throw new Error("投稿取得エラー");
+      const posts = await res.json();
+
+      grid.innerHTML = "";
+
+      if (!Array.isArray(posts) || posts.length === 0) {
+        grid.innerHTML = "<p>投稿が見つかりませんでした。</p>";
+        loadMoreBtn.style.display = "none";
+        return;
+      }
+
+      posts.forEach((post) => {
+        const card = document.createElement("div");
+        card.className = "post-card";
+
+        // ------------------------
+        // 🖼 画像スライダー
+        // ------------------------
+        let imagesHTML = "";
+        if (post.images && post.images.length > 0) {
+          const slides = post.images
+            .map(
+              (img, i) => `
+            <div class="slide${i === 0 ? " active" : ""}">
+              <img src="${escapeHTML(img)}" class="post-slider-image">
+            </div>
+          `
+            )
+            .join("");
+
+          imagesHTML = `
+            <div class="slider">
+              ${slides}
+              ${
+                post.images.length > 1
+                  ? `<button class="prev">❮</button><button class="next">❯</button>`
+                  : ""
+              }
+            </div>
+          `;
+        }
+
+        card.innerHTML = `
+          <div>${escapeHTML(post.text || "(本文なし)")}</div>
+          ${imagesHTML}
+          <div class="post-meta">
+            ${escapeHTML(post.published)}　
+            ❤️${escapeHTML(post.likeCount || "0")}　
+            💬${escapeHTML(post.commentCount || "0件")}
+          </div>
+        `;
+
+        // 🔁 スライダー制御
+        const slider = card.querySelector(".slider");
+        if (slider) {
+          let index = 0;
+          const slides = slider.querySelectorAll(".slide");
+          const showSlide = (i) => {
+            slides.forEach((s, j) => s.classList.toggle("active", i === j));
+          };
+          const prevBtn = slider.querySelector(".prev");
+          const nextBtn = slider.querySelector(".next");
+          if (prevBtn)
+            prevBtn.onclick = () => {
+              index = (index - 1 + slides.length) % slides.length;
+              showSlide(index);
+            };
+          if (nextBtn)
+            nextBtn.onclick = () => {
+              index = (index + 1) % slides.length;
+              showSlide(index);
+            };
+        }
+
+        grid.appendChild(card);
+      });
+
+      // ▫ もっと読み込むボタンの表示制御（5 未満なら打ち止め）
+      loadMoreBtn.style.display = posts.length >= limit ? "block" : "none";
+    } catch (err) {
+      console.error(err);
+      grid.innerHTML = "<p>❌ 投稿の取得に失敗しました</p>";
+    }
+  }
+
+  // ============================
+  // 🔽 もっと読み込む（limit += 5）
+  // ============================
+  loadMoreBtn.addEventListener("click", async () => {
+    limit += 5;
+    await fetchAndRenderPosts();
+  });
+
+  // 初期ロード
+  fetchAndRenderPosts();
+
+  return wrapper;
+}
+    async function loadChannel() {
+      const channelIdOrUrl = getQueryParam('channelId');
+      if (!channelIdOrUrl) {
+        document.getElementById('channel').textContent = '❌ URLに ?channelId= を指定してください';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/channel?channelId=${encodeURIComponent(channelIdOrUrl)}`);
+        if (!res.ok) throw new Error('APIエラー: ' + res.status);
+        const c = await res.json();
+        console.log('📦 channel API response:', c);
+        console.log('🎬 c.videos:', c.videos);
+      
+        if (!c || !c.name) throw new Error('チャンネル情報が取得できませんでした');
+
+        const container = document.getElementById('channel');
+        container.innerHTML = `
+          ${c.banner ? `<img src="${c.banner}" class="banner" alt="チャンネルバナー">` : ''}
+          ${c.avatar ? `<img src="${escapeHTML(c.avatar)}" class="avatar" alt="チャンネルアバター">` : ''}
+          <h2><a href="${escapeHTML(c.url)}">${escapeHTML(c.name)}</a></h2>
+          <div class="meta">登録者数: ${escapeHTML(c.subscriberCount)}</div>
+          <p>${escapeHTML(c.description || '説明文なし')}</p>
+        `;
+
+// 🔄 タブ生成順：動画 → プレイリスト → 投稿
+const tabs = document.createElement('div');
+tabs.className = 'tabs';
+
+const tabContents = [];    // ← タブに対応するコンテンツ
+const tabButtons = [];     // ← タブボタン用（順番を明確に管理）
+
+// 🔹 最新動画タブ (バックエンドの latestVideos を使う)
+if (Array.isArray(c.latestVideos) && c.latestVideos.length > 0) {
+  const latestBtn = document.createElement('button');
+  latestBtn.className = 'tab-button';
+  latestBtn.textContent = '最新動画';
+  tabButtons.push(latestBtn);
+
+  const latestGrid = document.createElement('div');
+  latestGrid.className = 'video-grid';
+  latestGrid.style.display = 'none';
+
+  // latestVideos に含まれる動画をカード化
+  c.latestVideos.forEach(video => {
+    latestGrid.appendChild(createVideoCard(video));
+  });
+
+  tabContents.push(latestGrid);
+}
+
+// 1️⃣ 先に shelves（動画タブ）を作る
+const validShelves = Array.isArray(c.shelves)
+  ? c.shelves.filter(s => !/投稿|community/i.test(s.title || ''))
+  : [];
+
+if (validShelves.length > 0) {
+  validShelves.forEach((shelf, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-button';
+    btn.textContent = shelf.title || `セクション${idx + 1}`;
+    tabButtons.push(btn);
+
+    const grid = document.createElement('div');
+    grid.className = 'video-grid';
+    grid.style.display = 'none';
+
+    (shelf.videos || []).forEach(video => {
+      grid.appendChild(createVideoCard(video));
+    });
+
+    tabContents.push(grid);
+  });
+
+  // 2️⃣ プレイリスト一覧タブ
+  const playlists = validShelves.flatMap(shelf => shelf.playlists || []);
+  if (playlists.length > 0) {
+    const plBtn = document.createElement('button');
+    plBtn.className = 'tab-button';
+    plBtn.textContent = 'プレイリスト一覧';
+    tabButtons.push(plBtn);
+
+    const plGrid = document.createElement('div');
+    plGrid.className = 'video-grid';
+    plGrid.style.display = 'none';
+
+    playlists.forEach(pl => plGrid.appendChild(createPlaylistCard(pl)));
+
+    tabContents.push(plGrid);
+  }
+}
+
+// -------------------------------------------------------------
+// 3️⃣ 最後に投稿タブを作る（絶対に消えない）
+// -------------------------------------------------------------
+const postBtn = document.createElement('button');
+postBtn.className = 'tab-button';
+postBtn.textContent = '投稿';
+tabButtons.push(postBtn);
+
+const postGrid = await loadCommunityTab(channelIdOrUrl);
+postGrid.style.display = 'none';
+tabContents.push(postGrid);   // ← 必ず最後に追加される
+
+// ⭐ タブボタンを DOM に追加
+tabButtons.forEach(btn => tabs.appendChild(btn));
+
+// ⭐ 初期表示：一番左（動画タブ）を active にする
+tabButtons[0].classList.add('active');
+tabContents[0].style.display = '';
+
+// 🔁 タブ切り替え処理
+tabButtons.forEach((btn, i) => {
+  btn.addEventListener('click', () => {
+    tabButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    tabContents.forEach((el, j) => {
+      el.style.display = j === i ? '' : 'none';
+    });
+  });
+});
+
+// ⭐ 最後に tabs と tabContents を container に追加
+container.appendChild(tabs);
+tabContents.forEach(content => container.appendChild(content));
+      } catch (err) {
+        console.error('❌ エラー:', err);
+        document.getElementById('channel').textContent = 'チャンネル情報の取得に失敗しました';
+      }
+    }
+
+    loadChannel();
+    
+// 🖼️ モーダル処理（クリックでフルスクリーンスライダー）
+const modal = document.getElementById('imageModal');
+const modalImg = document.getElementById('modalImg');
+const modalClose = document.getElementById('modalClose');
+const modalPrev = document.getElementById('modalPrev');
+const modalNext = document.getElementById('modalNext');
+
+let modalImages = []; // 現在の投稿内の画像リスト
+let modalIndex = 0;
+
+function showModalImage(index) {
+  modalIndex = (index + modalImages.length) % modalImages.length;
+  modalImg.style.opacity = 0;
+  setTimeout(() => {
+    modalImg.src = modalImages[modalIndex];
+    modalImg.style.opacity = 1;
+  }, 100);
+}
+
+// 投稿カードの画像クリックでモーダルを開く
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('post-slider-image')) {
+    const slider = e.target.closest('.slider');
+    const slides = slider.querySelectorAll('img');
+    modalImages = Array.from(slides).map(img => img.src);
+    modalIndex = Array.from(slides).indexOf(e.target);
+    showModalImage(modalIndex);
+    modal.style.display = 'flex';
+  }
+});
+
+// 🔁 モーダル内の矢印ボタン
+modalPrev.addEventListener('click', (e) => {
+  e.stopPropagation();
+  showModalImage(modalIndex - 1);
+});
+
+modalNext.addEventListener('click', (e) => {
+  e.stopPropagation();
+  showModalImage(modalIndex + 1);
+});
+
+// ❌ 閉じるボタン
+modalClose.addEventListener('click', () => {
+  modal.style.display = 'none';
+  modalImg.src = '';
+  modalImages = [];
+});
+
+// 背景クリックで閉じる
+modal.addEventListener('click', (e) => {
+  if (e.target === modal) {
+    modal.style.display = 'none';
+    modalImg.src = '';
+    modalImages = [];
+  }
+});
+
+// ⌨️ キーボード操作（← → ESC）
+document.addEventListener('keydown', (e) => {
+  if (modal.style.display === 'flex') {
+    if (e.key === 'ArrowLeft') showModalImage(modalIndex - 1);
+    if (e.key === 'ArrowRight') showModalImage(modalIndex + 1);
+    if (e.key === 'Escape') {
+      modal.style.display = 'none';
+      modalImg.src = '';
+      modalImages = [];
+    }
+  }
+});
+  </script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>プレイリスト表示</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: 'Segoe UI', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    h1 {
+      text-align: center;
+      padding: 1rem;
+      font-size: 1.8rem;
+      background-color: #1f1f1f;
+      margin: 0;
+      border-bottom: 1px solid #333;
+    }
+
+    #video-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+      padding: 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+.video-card {
+  background-color: #1e1e1e;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: background-color 0.3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  /* aspect-ratio: 1 / 1; 削除して高さを制限しない */
+  height: 320px; /* 任意で固定してもOK */
+}
+
+    .video-card:hover {
+      background-color: #2a2a2a;
+    }
+
+    .video-card img {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+
+.video-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #00bfff;
+  text-decoration: none;
+  text-align: center;
+  line-height: 1.4;
+  margin-top: 8px;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* 最大2行で切る */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 2.8em;
+}
+
+.video-title:hover {
+  text-decoration: underline;
+}
+
+.video-info {
+  color: #ccc;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 6px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.video-subinfo {
+  color: #999;
+  font-size: 0.8rem;
+  margin-top: 4px;
+  text-align: center;
+}
+  </style>
+</head>
+<body>
+  <h1 id="playlist-title">読み込み中...</h1>
+  <div id="video-list"></div>
+<div style="text-align: center; margin: 20px;">
+  <button id="load-more" style="padding: 10px 20px; font-size: 1rem; display: none;">もっと見る</button>
+</div>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const playlistId = params.get('list');
+
+    if (!playlistId) {
+      document.getElementById('playlist-title').textContent = '❌ プレイリストIDが指定されていません';
+    } else {
+      fetch(`/api/playlist/${playlistId}`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById('playlist-title').textContent = `🎵 ${data.title}（${data.itemCount}件）`;
+
+          const list = document.getElementById('video-list');
+data.videos.forEach(video => {
+  const card = document.createElement('div');
+  card.className = 'video-card';
+card.innerHTML = `
+  <a href="/video.html?videoId=${video.id}" target="_self">
+    <img src="${video.thumbnails?.[0]?.url || ''}" alt="${video.title}">
+  </a>
+  <a class="video-title" href="/video.html?videoId=${video.id}">${video.title}</a>
+  <div class="video-info">${video.author || ''} ／ ${video.duration || ''}</div>
+<div class="video-subinfo">
+  ${video.published ? `${video.published} 投稿` : ''}
+  ${video.viewCount ? `・${video.viewCount}` : ''}
+</div>
+`;
+  list.appendChild(card);
+  
+});
+        })
+        .catch(err => {
+          console.error('❌ プレイリスト取得失敗:', err);
+          document.getElementById('playlist-title').textContent = '❌ プレイリスト取得に失敗しました';
+        });
+    }
+async function fetchVideoMeta(videoId) {
+  try {
+    const video = await client.getVideo(videoId);
+    const basic = video.basic_info;
+    console.log(`🧤 video.basic_info for ${videoId}:`, basic);
+
+    const viewCount = basic?.view_count ?? null;
+    const published = basic?.publish_date ?? null;
+
+    return { viewCount, published };
+  } catch (err) {
+    console.error(`再生数取得失敗: ${videoId}`, err.message);
+    return { viewCount: null, published: null };
+  }
+}
+  </script>
+  <script>
+  const params = new URLSearchParams(window.location.search);
+  const playlistId = params.get('list');
+  const list = document.getElementById('video-list');
+  const loadMoreBtn = document.getElementById('load-more');
+
+  let nextPageToken = null;
+
+  if (!playlistId) {
+    document.getElementById('playlist-title').textContent = '❌ プレイリストIDが指定されていません';
+  } else {
+    loadPlaylistPage();
+  }
+
+  loadMoreBtn.addEventListener('click', () => {
+    loadPlaylistPage();
+  });
+
+  function renderVideoCard(video) {
+    const card = document.createElement('div');
+    card.className = 'video-card';
+    card.innerHTML = `
+      <a href="/video.html?videoId=${video.id}" target="_self">
+        <img src="${video.thumbnails?.[0]?.url || ''}" alt="${video.title}">
+      </a>
+      <a class="video-title" href="/video.html?videoId=${video.id}">${video.title}</a>
+      <div class="video-info">${video.author || ''} ／ ${video.duration || ''}</div>
+      <div class="video-subinfo">
+        ${video.published ? `${video.published} 投稿` : ''}
+        ${video.viewCount ? `・${video.viewCount}` : ''}
+      </div>
+    `;
+    list.appendChild(card);
+  }
+
+  async function loadPlaylistPage() {
+    try {
+      const url = `/api/playlist/${playlistId}${nextPageToken ? `?token=${encodeURIComponent(nextPageToken)}` : ''}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!document.getElementById('playlist-title').textContent.includes('🎵')) {
+        document.getElementById('playlist-title').textContent = `🎵 ${data.title}`;
+      }
+
+      data.videos.forEach(renderVideoCard);
+
+      if (data.nextPageToken) {
+        nextPageToken = data.nextPageToken;
+        loadMoreBtn.style.display = 'inline-block';
+      } else {
+        loadMoreBtn.style.display = 'none';
+      }
+    } catch (err) {
+      console.error('❌ プレイリスト取得失敗:', err);
+      document.getElementById('playlist-title').textContent = '❌ プレイリスト取得に失敗しました';
+    }
+  }
+</script>
+  <script>
+function formatViews(viewCount) {
+  const n = parseInt(viewCount, 10);
+  if (isNaN(n)) return '';
+  return n >= 10000
+    ? `${(n / 10000).toFixed(1)}万回視聴`
+    : `${n.toLocaleString()}回視聴`;
+}
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '';
+    return `${dateStr} 投稿`;
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>YouTube ダウンローダー</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 20px;
+    }
+
+    input[type="text"] {
+      padding: 12px;
+      width: 60%;
+      max-width: 400px;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      margin-right: 10px;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 1rem;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .video-info {
+      margin-top: 30px;
+      background-color: #1e1e1e;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: left;
+    }
+
+    .video-info img {
+      border-radius: 8px;
+      float: left;
+      margin-right: 20px;
+      width: 120px;
+    }
+
+    .video-info h2 {
+      margin-top: 0;
+      font-size: 1.4rem;
+    }
+
+    .video-info p {
+      margin: 5px 0;
+      font-size: 0.95rem;
+      color: #ccc;
+    }
+
+    .stream-links {
+      margin-top: 20px;
+      clear: both;
+    }
+
+    .stream-links a {
+      display: inline-block;
+      margin: 8px 5px;
+      padding: 10px 15px;
+      background-color: #333;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .stream-links a:hover {
+      background-color: #555;
+    }
+
+    .play-button {
+      margin-top: 30px;
+      text-align: center;
+    }
+
+    .play-button a button {
+      background-color: #28a745;
+      font-size: 1.1rem;
+      padding: 14px 28px;
+    }
+
+    .play-button a button:hover {
+      background-color: #1f923f;
+    }
+
+    @media (max-width: 600px) {
+      input[type="text"] {
+        width: 100%;
+        margin-bottom: 10px;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .video-info img {
+        float: none;
+        display: block;
+        margin: 0 auto 15px;
+      }
+
+      .video-info {
+        text-align: center;
+      }
+    }
+    
+    .search-container {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 20px auto;
+}
+
+#searchInput {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 4px;
+  border: none;
+  outline: none;
+  background-color: #2a2a2a;
+  color: #fff;
+}
+
+.suggestion-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  border-top: none;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+}
+
+.suggestion-list li {
+  padding: 10px;
+  cursor: pointer;
+  color: #ccc;
+}
+
+.suggestion-list li:hover {
+  background-color: #333;
+  color: #fff;
+}
+  </style>
+</head>
+<body>
+<div class="search-container">
+  <input
+    type="text"
+    id="searchInput"
+    placeholder="検索..."
+    autocomplete="off"
+  />
+  <ul id="suggestions" class="suggestion-list"></ul>
+</div>
+
+<script>
+  const input = document.getElementById('searchInput');
+  const suggestionsBox = document.getElementById('suggestions');
+
+  input?.addEventListener('focus', () => fetchSuggestions(input.value));
+  input?.addEventListener('input', debounce(() => fetchSuggestions(input.value), 300));
+  input?.addEventListener('blur', () => setTimeout(() => { suggestionsBox.style.display = 'none'; }, 100));
+
+  input?.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const query = input.value.trim();
+      if (query) {
+        window.location.href = `/search.html?q=${encodeURIComponent(query)}`;
+      }
+    }
+  });
+
+  async function fetchSuggestions(q) {
+    if (!q) {
+      suggestionsBox.style.display = 'none';
+      return;
+    }
+    try {
+      const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`);
+      const arr = await res.json();
+      if (arr.length) {
+        suggestionsBox.innerHTML = arr
+          .map(s => `<li onclick="selectSuggestion('${s}')">${s}</li>`)
+          .join('');
+        suggestionsBox.style.display = 'block';
+      } else {
+        suggestionsBox.style.display = 'none';
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function debounce(fn, delay = 300) {
+    let timer;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
+  function selectSuggestion(s) {
+    input.value = s;
+    suggestionsBox.style.display = 'none';
+    window.location.href = `/search.html?q=${encodeURIComponent(s)}`;
+  }
+</script>
+
+  <div class="container">
+    <h1>🎬 YouTube ダウンローダー</h1>
+    <p>動画IDを入力してください（例: <code>dQw4w9WgXcQ</code>）</p>
+    <input type="text" id="videoId" placeholder="YouTubeのVideo ID" />
+    <button onclick="fetchVideo()">取得</button>
+
+    <div class="video-info" id="videoInfo"></div>
+  </div>
+
+  <script>
+    async function fetchVideo() {
+      const id = document.getElementById('videoId').value.trim();
+      if (!id) return alert('Video ID を入力してください');
+
+      const infoDiv = document.getElementById('videoInfo');
+      infoDiv.innerHTML = '🔄 データ取得中...';
+
+      try {
+        const res = await fetch(`/api/video/${id}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        infoDiv.innerHTML = `
+          <img src="${data.channelImage}" alt="チャンネル画像" />
+          <div>
+            <h2>${data.videoTitle}</h2>
+            <p>👤 ${data.channelName}</p>
+            <p>👁️ ${Number(data.videoViews).toLocaleString()} 回視聴</p>
+            <p>${data.videoDes || ''}</p>
+          </div>
+
+          <div class="stream-links">
+            <h3>💾 ダウンロードリンク:</h3>
+            <a href="${data.stream_url}" download>🎥 通常動画 (MP4)</a>
+            <a href="${data.audioUrl}" download>🎧 音声 (M4A)</a>
+            ${
+              (data.streamUrls || []).map(s => 
+                `<a href="${s.url}" download>📺 ${s.resolution} (WebM)</a>`
+              ).join('')
+            }
+          </div>
+
+          <div class="play-button">
+            <a href="video.html?videoId=${id}">
+              <button>▶️ 再生ページへ移動</button>
+            </a>
+          </div>
+        `;
+        currentVideoUrl = data.streamUrls?.[0]?.url || data.stream_url;
+        currentAudioUrl = data.audioUrl;
+
+      } catch (err) {
+        infoDiv.innerHTML = `<p style="color:red">❌ エラー: ${err.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>

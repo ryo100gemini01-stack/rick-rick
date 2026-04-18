@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>動画再生 | YouTubeダウンローダー</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #121212;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 10px #000;
+    }
+
+    h1 {
+      font-size: 1.8em;
+      margin-bottom: 10px;
+    }
+
+    .channel-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .channel-info img {
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+    }
+
+    video {
+      width: 100%;
+      max-width: 100%;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .controls button, select {
+      padding: 10px 15px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      background: #333;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .controls button:hover, select:hover {
+      background-color: #555;
+    }
+
+    .description {
+      margin-top: 10px;
+      font-size: 0.95em;
+      color: #ccc;
+    }
+
+    .status {
+      margin-bottom: 15px;
+      color: #aaa;
+      font-size: 0.9em;
+    }
+    
+    
+    .search-container {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 20px auto;
+}
+
+#searchInput {
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  border-radius: 4px;
+  border: none;
+  outline: none;
+  background-color: #2a2a2a;
+  color: #fff;
+}
+
+.suggestion-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: #1e1e1e;
+  border: 1px solid #333;
+  border-top: none;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  z-index: 1000;
+  max-height: 200px;
+  overflow-y: auto;
+  display: none;
+}
+
+.suggestion-list li {
+  padding: 10px;
+  cursor: pointer;
+  color: #ccc;
+}
+
+.suggestion-list li:hover {
+  background-color: #333;
+  color: #fff;
+}
+
+    .comment {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background-color: #000;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border: 1px solid #333;
+    }
+
+    .reply {
+      margin-left: 2rem;
+      border-left: 2px solid #ddd;
+    }
+
+.comment-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.published-time {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.75em;
+  color: #888;
+}
+
+.heart {
+  color: #ff0000;
+  margin-left: 8px;
+  font-size: 1.1em;
+  vertical-align: middle;
+}
+
+    .author-img {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+
+    .author-name {
+      font-weight: bold;
+    }
+
+    .meta {
+      margin-left: 0.5rem;
+      font-size: 0.85em;
+      color: #777;
+    }
+
+    .comment-text {
+      margin-bottom: 0.3rem;
+    }
+
+    .likes {
+      font-size: 0.8em;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+<div class="search-container">
+  <input
+    type="text"
+    id="searchInput"
+    placeholder="検索..."
+    autocomplete="off"
+  />
+  <ul id="suggestions" class="suggestion-list"></ul>
+</div>
+
+<script>
+  const input = document.getElementById('searchInput');
+  const suggestionsBox = document.getElementById('suggestions');
+
+  input?.addEventListener('focus', () => fetchSuggestions(input.value));
+  input?.addEventListener('input', debounce(() => fetchSuggestions(input.value), 300));
+  input?.addEventListener('blur', () => setTimeout(() => { suggestionsBox.style.display = 'none'; }, 100));
+
+  input?.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const query = input.value.trim();
+      if (query) {
+        window.location.href = `/search.html?q=${encodeURIComponent(query)}`;
+      }
+    }
+  });
+
+  async function fetchSuggestions(q) {
+    if (!q) {
+      suggestionsBox.style.display = 'none';
+      return;
+    }
+    try {
+      const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`);
+      const arr = await res.json();
+      if (arr.length) {
+        suggestionsBox.innerHTML = arr
+          .map(s => `<li onclick="selectSuggestion('${s}')">${s}</li>`)
+          .join('');
+        suggestionsBox.style.display = 'block';
+      } else {
+        suggestionsBox.style.display = 'none';
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function debounce(fn, delay = 300) {
+    let timer;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
+  function selectSuggestion(s) {
+    input.value = s;
+    suggestionsBox.style.display = 'none';
+    window.location.href = `/search.html?q=${encodeURIComponent(s)}`;
+  }
+</script>
+  <div class="container">
+    <div class="status" id="status">🔄 読み込み中...</div>
+    <h1 id="videoTitle">動画タイトル</h1>
+
+    <div class="channel-info">
+        <a id="channelLink" href="#" target="_self"><img id="channelImage" src="" alt="チャンネル画像" /></a>
+      <div>
+        <div id="channelName">チャンネル名</div>
+        <div id="videoViews">👁️ 再生数</div>
+      </div>
+    </div>
+
+    <video id="video" controls></video>
+    <audio id="audio" hidden></audio>
+
+    <div class="controls">
+      <button onclick="playBoth()">▶️ 再生</button>
+      <button onclick="pauseBoth()">⏸️ 停止</button>
+
+      <label>
+        🎚 画質:
+        <select id="qualitySelect" onchange="changeQuality(this.value)">
+          <option>読み込み中...</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="description" id="videoDes">説明文</div>
+  <h1>コメント一覧</h1>
+  <div id="comments-container">コメントを読み込み中...</div>
+  <ul id="commentList" style="list-style: none; padding: 0;"></ul>
+  </div>
+<script>
+  window.renderComments = function renderComments(comments, isReply = false) {
+    return comments.map((c, i) => {
+      const commentId = `comment-${c.id}-${i}`;
+      const token = c.replyToken ? encodeURIComponent(c.replyToken) : null;
+
+      const repliesHtml = Array.isArray(c.replies) && c.replies.length > 0
+        ? `<div id="${commentId}" class="replies-container" style="display: block;" data-loaded="true">
+            ${renderComments(c.replies, true)}
+          </div>`
+        : `<div id="${commentId}" class="replies-container" style="display: none;"></div>`;
+
+      const replyButton = (!Array.isArray(c.replies) || c.replies.length === 0) && c.replyCount && token
+        ? `<button 
+              class="load-replies-button"
+              data-comment-id="${c.id}" 
+              data-container-id="${commentId}" 
+              data-token="${token}">
+              💬 ${c.replyCount} 件の返信を表示
+           </button>`
+        : '';
+
+      const heartHtml = c.hasHeart
+        ? `<span class="heart" title="投稿者のハート"></span>`
+        : '';
+
+      return `
+        <div class="comment ${isReply ? 'reply' : ''}">
+          <div class="comment-header">
+            <img src="${c.authorPhoto}" class="author-img">
+            <span class="author-name">${c.author}</span>
+            ${heartHtml}
+            <span class="published-time">${c.publishedTime}</span>
+          </div>
+          <div class="comment-text">${c.text}</div>
+          ${c.likes ? `<div class="likes">👍 ${c.likes}</div>` : ''}
+          ${replyButton}
+          ${repliesHtml}
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.load-replies-button');
+    if (!btn) return;
+
+    const commentId = btn.dataset.commentId;
+    const containerId = btn.dataset.containerId;
+    const token = btn.dataset.token;
+
+    loadReplies(commentId, containerId, token);
+  });
+
+  function toggleReplies(id) {
+    const el = document.getElementById(id);
+    const btn = el?.previousElementSibling;
+    if (!el || !btn) return;
+
+    if (el.style.display === 'none') {
+      el.style.display = 'block';
+      btn.textContent = '🔽 返信コメントを非表示';
+    } else {
+      el.style.display = 'none';
+      btn.textContent = '💬 返信コメントを表示';
+    }
+  }
+
+  window.loadReplies = async function(commentId, containerId, token) {
+    const container = document.getElementById(containerId);
+    if (!container || !token) return;
+
+    if (container.dataset.loaded === 'true') {
+      container.style.display = container.style.display === 'none' ? 'block' : 'none';
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/video/${videoId}/comments/${commentId}/replies?token=${token}`);
+      const replies = await res.json();
+
+      if (!Array.isArray(replies)) {
+        container.innerHTML = `<div>⚠️ 返信の取得に失敗しました。</div>`;
+        return;
+      }
+
+      container.innerHTML = renderComments(replies, true);
+      container.style.display = 'block';
+      container.dataset.loaded = 'true';
+    } catch (err) {
+      console.error('返信取得失敗:', err);
+      container.innerHTML = `<div>⚠️ 返信の読み込みエラー</div>`;
+    }
+  };
+</script>
+<script>
+const videoEl = document.getElementById('video');
+const audioEl = document.getElementById('audio');
+const statusEl = document.getElementById('status');
+const qualitySelect = document.getElementById('qualitySelect');
+
+let streamList = [];
+let syncTimer = null;
+
+const params = new URLSearchParams(window.location.search);
+const videoId = params.get('videoId');
+
+if (!videoId) {
+  statusEl.textContent = "❌ videoId が指定されていません。";
+  throw new Error("videoIdが必要です");
+}
+
+/* =====================
+   同期関連
+===================== */
+
+function isVideoBuffered(t) {
+  for (let i = 0; i < videoEl.buffered.length; i++) {
+    if (t >= videoEl.buffered.start(i) && t <= videoEl.buffered.end(i)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function startSync() {
+  if (syncTimer) return;
+
+  syncTimer = setInterval(() => {
+    if (videoEl.paused || audioEl.paused) return;
+
+    const diff = videoEl.currentTime - audioEl.currentTime;
+
+    // 許容範囲
+    if (Math.abs(diff) < 0.12) {
+      audioEl.playbackRate = 1.0;
+      return;
+    }
+
+    // 微調整
+    if (Math.abs(diff) < 0.5) {
+      audioEl.playbackRate = diff > 0 ? 1.03 : 0.97;
+      return;
+    }
+
+    // 大ズレ → ジャンプ
+    if (isVideoBuffered(videoEl.currentTime)) {
+      audioEl.currentTime = videoEl.currentTime;
+      audioEl.playbackRate = 1.0;
+    }
+  }, 100);
+}
+
+function stopSync() {
+  clearInterval(syncTimer);
+  syncTimer = null;
+}
+
+/* =====================
+   再生制御（video 主）
+===================== */
+
+function playBoth() {
+  audioEl.currentTime = videoEl.currentTime;
+  videoEl.play().catch(console.warn);
+}
+
+function pauseBoth() {
+  videoEl.pause();
+}
+
+/* =====================
+   イベント（1回だけ）
+===================== */
+
+videoEl.addEventListener('play', async () => {
+  audioEl.currentTime = videoEl.currentTime;
+  await audioEl.play().catch(() => {});
+  startSync();
+});
+
+videoEl.addEventListener('pause', () => {
+  audioEl.pause();
+  stopSync();
+});
+
+videoEl.addEventListener('seeking', () => {
+  audioEl.currentTime = videoEl.currentTime;
+});
+
+/* =====================
+   画質切替
+===================== */
+
+function changeQuality(index) {
+  const pos = videoEl.currentTime;
+  const wasPlaying = !videoEl.paused;
+  const stream = streamList[index];
+
+  if (stream && stream.url) {
+    videoEl.src = stream.url;
+    videoEl.load();
+
+    videoEl.currentTime = pos;
+    audioEl.currentTime = pos;
+
+    if (wasPlaying) {
+      playBoth();
+    }
+  }
+}
+
+/* =====================
+   データ取得
+===================== */
+
+async function fetchVideoData() {
+  try {
+    const res = await fetch(`/api/video/${videoId}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('videoTitle').textContent = data.videoTitle;
+    document.getElementById('channelName').textContent = data.channelName;
+    document.getElementById('videoViews').textContent =
+      `👁️ ${Number(data.videoViews).toLocaleString()} 回視聴`;
+    document.getElementById('channelImage').src = data.channelImage;
+    document.getElementById('videoDes').innerHTML = data.videoDes;
+
+    document.getElementById("channelLink").href =
+      `/channel.html?channelId=${data.channelId}`;
+
+    // audio
+    audioEl.src = data.audioUrl;
+
+    // 画質
+    streamList = data.streamUrls || [];
+    if (streamList.length) {
+      qualitySelect.innerHTML = streamList
+        .map((s, i) => `<option value="${i}">${s.resolution}</option>`)
+        .join('');
+      changeQuality(0);
+    } else {
+      videoEl.src = data.stream_url;
+      qualitySelect.innerHTML = `<option>デフォルトのみ</option>`;
+    }
+
+    // コメント
+    if (data.comments?.length) {
+      commentList.innerHTML = renderComments(data.comments);
+    } else {
+      commentList.innerHTML = `<li>コメントは見つかりませんでした。</li>`;
+    }
+
+    statusEl.textContent = "✅ 準備完了";
+  } catch (err) {
+    statusEl.textContent = "❌ エラー: " + err.message;
+  }
+}
+
+fetchVideoData();
+</script>
+</body>
+</html>

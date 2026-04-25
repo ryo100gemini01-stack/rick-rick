@@ -21,26 +21,6 @@ const {
   parseComments
 } = require('./community');
 
-connectEarthquakeWS((quakeData) => {
-  const quake = quakeData.earthquake;
-  if (!quake) return;
-
-  const payload = {
-    time: quake.originTime,
-    magnitude: quake.hypocenter?.magnitude,
-    depth: quake.hypocenter?.depth,
-    place: quake.hypocenter?.name,
-    maxScale: quake.maxScale,
-    tsunami: quake.domesticTsunami
-  };
-
-  earthquakeWSS.clients.forEach(client => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(payload));
-    }
-  });
-});
-
 // 🔸 動画情報 + コメント一覧取得
 app.get('/api/video/:id', async (req, res) => {
   try {
